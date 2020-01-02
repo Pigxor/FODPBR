@@ -108,3 +108,4 @@ glm::mat4 Camera::getMatrix()
 	viewMat = glm::inverse(model);
 	return model;
 }
+

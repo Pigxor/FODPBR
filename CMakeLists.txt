@@ -1,3 +1,4 @@
+
 cmake_minimum_required(VERSION 2.6)
 project(FODPBR)
 
@@ -21,4 +22,5 @@ target_link_libraries(fodPBR SDL2 opengl32 glew32)
 add_executable(PBRDemo
  src/PBRDemo/main.cpp
 )
+
 target_link_libraries(PBRDemo fodPBR)

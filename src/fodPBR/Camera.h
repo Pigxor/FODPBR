@@ -3,8 +3,6 @@
 
 #include "metaHeader.h"
 
-
-
 class Camera
 {
 
@@ -39,6 +37,5 @@ public:
 	glm::mat4 getMatrix();
 
 };
-
 
 #endif

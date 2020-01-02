@@ -234,6 +234,3 @@ void Shape::unbindTex()
 		}
 	}
 }
-
-
-

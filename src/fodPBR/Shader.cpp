@@ -25,7 +25,8 @@ void Shader::pollErrors(unsigned int _shader, std::string _type)
 	}
 }
 
-Shader::Shader(const GLchar * vertexPath, const GLchar * fragmentPath)
+
+Shader::Shader(const GLchar * vertexPath, const GLchar * fragmentPath) //From tutorial - https://learnopengl.com/Getting-started/Shaders
 {
 	// 1. retrieve the vertex/fragment source code from filePath
 	std::string vertexCode;

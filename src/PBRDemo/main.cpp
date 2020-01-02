@@ -64,25 +64,27 @@ int main(int argc, char *argv[])
 	lastTime = SDL_GetTicks();
 	//
 
-	//cam1
+	//Cam1
 	Camera camera;
 
-	//create the balls and cubemap
+	//Create the balls and cubemap
 	Shape ball(true);
 	Shape utBall(true);
+
 	Shape cube(false);
+
 	Shape quad(false);
-	RenderTex cap;
+
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-	//create all the shaders
-	Shader basicShader("../shaders/simpleShader.vs", "../shaders/simpleShader.fs");
-	Shader pbrTextured("../shaders/PBRshader.vs", "../shaders/PBRshader.fs");
-	Shader utPBR("../shaders/PBRNTshader.vs", "../shaders/PBRNTshader.fs");
-	Shader cubemapShader("../shaders/convertShader.vs", "../shaders/convertShader.fs");
-	Shader irradianceShader("../shaders/irShader.vs", "../shaders/irShader.fs");
-	Shader prefilter("../shaders/prefilterShader.vs", "../shaders/prefilterShader.fs");
+	
+	//Create all the shader objects
+	Shader pbrTextured("../shaders/PBR.vs", "../shaders/PBR.fs");
+	Shader utPBR("../shaders/utPBR.vs", "../shaders/utPBR.fs");
+	Shader cubemapShader("../shaders/cubemap.vs", "../shaders/cubemap.fs");
+	Shader irradianceShader("../shaders/irradiance.vs", "../shaders/irradiance.fs");
+	Shader prefilter("../shaders/prefilter.vs", "../shaders/prefilter.fs");
 	Shader brdf("../shaders/brdf.vs", "../shaders/brdf.fs");
 
 	Shader skybox("../shaders/skyShader.vs", "../shaders/skyShader.fs");
@@ -97,17 +99,16 @@ int main(int argc, char *argv[])
 	unsigned int captureRBO;
 	glGenFramebuffers(1, &captureFBO);
 	glGenRenderbuffers(1, &captureRBO);
-
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
 	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 1024, 1024);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
 
 	//make space in the memory to create some textures
-	Tex cubeMap({ 1024,1024 }, 0);
+	Tex cubeMap({ 1024,1024 }, 0); 
 	Tex irCubeMap({ 32,32}, 0);
 	Tex pfCubeMap({ 128,128 }, 1);
-	Tex brdfCubeMap({ 512,512 }, 3);
+	Tex brdfTex({ 512,512 }, 3);
 
 	glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
 	glm::mat4 captureViews[] = //All the positions for the camera to 'look at' to form a cubemap
@@ -193,15 +194,13 @@ int main(int argc, char *argv[])
 	glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
 	glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, 512, 512);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, brdfCubeMap.getID(), 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, brdfTex.getID(), 0);
 	glViewport(0, 0, 512, 512);
 	brdf.setActiveShader();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	quad.renderQuad();
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	
-
-	cap.resetViewPort();
 
 	//Assign all the uniforms for the shaders
 	pbrTextured.setActiveShader();
@@ -226,7 +225,7 @@ int main(int argc, char *argv[])
 	Tex albedoMap("../models/albedoMap.png", false);
 	Tex normalMap("../models/normalMap.png", false);
 	Tex metallicMap("../models/metallicMap.png", false);
-	Tex aoMap("../models/grey.png", false);
+	Tex aoMap("../models/aoMap.png", false);
 	Tex rufMap("../models/roughnessMap.png", false);
 
 	//Assign the textures to the balls
@@ -240,12 +239,12 @@ int main(int argc, char *argv[])
 	ball.addTex(aoMap);
 	ball.addTex(irCubeMap);
 	ball.addTex(pfCubeMap);
-	ball.addTex(brdfCubeMap);
+	ball.addTex(brdfTex);
 
-	////Give the 'untextured' balls the textures for ibl
+	//Give the 'untextured' balls the textures for ibl
 	utBall.addTex(irCubeMap);
 	utBall.addTex(pfCubeMap);
-	utBall.addTex(brdfCubeMap);
+	utBall.addTex(brdfTex);
 
 	//Assign the cubemap texture
 	cube.addTex(cubeMap);
@@ -291,8 +290,11 @@ int main(int argc, char *argv[])
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		ball.bindTex();
-		if (textured == true)		///Texture Spheres
+		utBall.bindTex();
+
+		if (textured)		///Texture Spheres
 		{
+	
 			pbrTextured.setActiveShader();
 
 			pbrTextured.setUniformVec3("camPos", pos);
@@ -319,13 +321,12 @@ int main(int argc, char *argv[])
 
 			for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
 			{
-				glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(deltaTime * 5.0) * 5.0, 10.0, 0.0);
-				newPos = lightPositions[i];
-				pbrTextured.setUniformVec3("lightPositions[" + std::to_string(i) + "]", newPos);
+
+				pbrTextured.setUniformVec3("lightPositions[" + std::to_string(i) + "]", lightPositions[i]);
 				pbrTextured.setUniformVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
 
 				model = glm::mat4(1.0f);
-				model = glm::translate(model, newPos);
+				model = glm::translate(model, lightPositions[i]);
 				model = glm::scale(model, glm::vec3(0.5f));
 				pbrTextured.setUniformMat4("model", model);
 				ball.render();
@@ -333,12 +334,12 @@ int main(int argc, char *argv[])
 		}
 		
 
-		if (textured == false)	///Untextured Spheres
+		if (!textured)	///Untextured Spheres
 		{
 			utPBR.setActiveShader();
 			utPBR.setUniformVec3("camPos", pos);
 			utPBR.setUniformMat4("view", view);
-			utBall.bindTex();
+
 
 			glm::mat4 model = glm::mat4(1.0f);
 
@@ -365,13 +366,12 @@ int main(int argc, char *argv[])
 
 			for (unsigned int i = 0; i < sizeof(lightPositions) / sizeof(lightPositions[0]); ++i)
 			{
-				glm::vec3 newPos = lightPositions[i] + glm::vec3(sin(deltaTime * 5.0) * 5.0, 10.0, 0.0);
-				newPos = lightPositions[i];
-				utPBR.setUniformVec3("lightPositions[" + std::to_string(i) + "]", newPos);
+
+				utPBR.setUniformVec3("lightPositions[" + std::to_string(i) + "]", lightPositions[i]);
 				utPBR.setUniformVec3("lightColors[" + std::to_string(i) + "]", lightColors[i]);
 
 				model = glm::mat4(1.0f);
-				model = glm::translate(model, newPos);
+				model = glm::translate(model, lightPositions[i]);
 				model = glm::scale(model, glm::vec3(0.5f));
 				utPBR.setUniformMat4("model", model);
 				utBall.render(); 
